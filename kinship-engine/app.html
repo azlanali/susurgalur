@@ -149,14 +149,32 @@
       </div>
       <div class="grid3">
         <div>
-          <label>Tempat asal (kampung / daerah)</label>
-          <input type="text" id="fPlace" placeholder="cth: Parit Jawa, Muar">
+          <label>Tempat asal — kampung / taman</label>
+          <input type="text" id="fPlace" placeholder="cth: Parit Jawa">
+        </div>
+        <div>
+          <label>Negeri</label>
+          <select id="fNegeri" onchange="refreshDaerahOptions(this.value)"></select>
+        </div>
+        <div>
+          <label>Daerah / jajahan</label>
+          <select id="fDaerah"></select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Lokasi kampung (pilihan) — peringkat kampung sahaja, ±100 m</label>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:2px">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="captureLocation()">📍 Guna lokasi semasa</button>
+            <span id="coordStatus" style="font-size:.8rem; color:#666"></span>
+            <button type="button" class="btn btn-ghost btn-sm" id="clearCoord" style="display:none" onclick="clearCoords()">✖</button>
+          </div>
+          <input type="hidden" id="fLat"><input type="hidden" id="fLng">
         </div>
         <div>
           <label>Tahun meninggal (jika arwah)</label>
           <input type="number" id="fDeathYear" placeholder="cth: 1989">
         </div>
-        <div></div>
       </div>
       <div class="grid2">
         <div>
@@ -284,7 +302,9 @@
         <tr><td>NamaIbu</td><td>Tidak</td><td>Sama seperti NamaAyah</td></tr>
         <tr><td>Pasangan</td><td>Tidak</td><td>Nama pasangan; jika lebih satu, asingkan dengan <i>;</i></td></tr>
         <tr><td>Hubungan</td><td>Tidak</td><td><i>kandung</i> (lalai) / <i>angkat</i> / <i>tiri</i> — hubungan dengan ibu bapa di atas</td></tr>
-        <tr><td>TempatAsal</td><td>Tidak</td><td>Kampung / daerah — <i>Parit Jawa, Muar</i></td></tr>
+        <tr><td>TempatAsal</td><td>Tidak</td><td>Nama kampung / taman sahaja — <i>Parit Jawa</i></td></tr>
+        <tr><td>Daerah</td><td>Tidak</td><td>Daerah / jajahan — <i>Muar</i></td></tr>
+        <tr><td>Negeri</td><td>Tidak</td><td>Negeri atau WP — <i>Johor</i> (mesti ejaan rasmi)</td></tr>
         <tr><td>TahunMeninggal</td><td>Tidak</td><td>Tahun sahaja, jika arwah — <i>1989</i></td></tr>
         <tr><td>Pendidikan</td><td>Tidak</td><td>Sekolah / universiti — <i>Universiti Malaya</i></td></tr>
         <tr><td>Bidang</td><td>Tidak</td><td>Bidang pengajian — <i>Perubatan</i></td></tr>
@@ -379,6 +399,15 @@ function cleanPerson(p) {
   if (deathYear) out.deathYear = deathYear;
   if (edu) out.edu = edu;
   if (eduField) out.eduField = eduField;
+  // tempat asal — structured (plan §8e): daerah free-ish text, negeri canonical only
+  const daerah = cleanText(p && p.daerah, 60);
+  const negeri = canonNegeri(p && p.negeri);
+  if (daerah) out.daerah = daerah;
+  if (negeri) out.negeri = negeri;
+  // village-level coordinates only (3 dp ≈ 100 m), must be inside Malaysia
+  const lat = cleanCoord(p && p.lat, 0.5, 8);
+  const lng = cleanCoord(p && p.lng, 99, 120);
+  if (lat !== undefined && lng !== undefined) { out.lat = lat; out.lng = lng; }
   // avatar appearance — validated enums only, and only when they match jantina
   const attire = p && ["niqab", "niqabhitam", "jubah", "jubahputih"].includes(p.attire) ? p.attire : "";
   if ((attire.startsWith("niqab") && out.sex === "F") || (attire.startsWith("jubah") && out.sex === "M")) out.attire = attire;
@@ -387,6 +416,126 @@ function cleanPerson(p) {
   return out;
 }
 const ALLOWED_BASIS = ["biological", "angkat", "tiri"];
+
+// ---------------- tempat (kampung / daerah / negeri) ----------------
+// Prototype slice of plan §8e: structured place instead of free text, so the
+// same kampung can be MATCHED. Full gazetteer + map pins come in the web app;
+// here the negeri/daerah lists are the verification layer.
+const NEGERI_DAERAH = {
+  "Johor": ["Batu Pahat","Johor Bahru","Kluang","Kota Tinggi","Kulai","Mersing","Muar","Pontian","Segamat","Tangkak"],
+  "Kedah": ["Baling","Bandar Baharu","Kota Setar","Kuala Muda","Kubang Pasu","Kulim","Langkawi","Padang Terap","Pendang","Pokok Sena","Sik","Yan"],
+  "Kelantan": ["Bachok","Gua Musang","Jeli","Kota Bharu","Kuala Krai","Machang","Pasir Mas","Pasir Puteh","Tanah Merah","Tumpat"],
+  "Melaka": ["Alor Gajah","Jasin","Melaka Tengah"],
+  "Negeri Sembilan": ["Jelebu","Jempol","Kuala Pilah","Port Dickson","Rembau","Seremban","Tampin"],
+  "Pahang": ["Bentong","Bera","Cameron Highlands","Jerantut","Kuantan","Lipis","Maran","Pekan","Raub","Rompin","Temerloh"],
+  "Perak": ["Bagan Datuk","Batang Padang","Hilir Perak","Hulu Perak","Kampar","Kerian","Kinta","Kuala Kangsar","Larut, Matang dan Selama","Manjung","Muallim","Perak Tengah"],
+  "Perlis": [],
+  "Pulau Pinang": ["Barat Daya","Seberang Perai Selatan","Seberang Perai Tengah","Seberang Perai Utara","Timur Laut"],
+  "Sabah": ["Beaufort","Beluran","Kalabakan","Keningau","Kinabatangan","Kota Belud","Kota Kinabalu","Kota Marudu","Kuala Penyu","Kudat","Kunak","Lahad Datu","Nabawan","Papar","Penampang","Pitas","Putatan","Ranau","Sandakan","Semporna","Sipitang","Tambunan","Tawau","Telupid","Tenom","Tongod","Tuaran"],
+  "Sarawak": ["Betong","Bintulu","Kapit","Kuching","Limbang","Miri","Mukah","Samarahan","Sarikei","Serian","Sibu","Sri Aman"],
+  "Selangor": ["Gombak","Hulu Langat","Hulu Selangor","Klang","Kuala Langat","Kuala Selangor","Petaling","Sabak Bernam","Sepang"],
+  "Terengganu": ["Besut","Dungun","Hulu Terengganu","Kemaman","Kuala Nerus","Kuala Terengganu","Marang","Setiu"],
+  "WP Kuala Lumpur": [], "WP Labuan": [], "WP Putrajaya": []
+};
+
+// Accept "Johor", "johor", "Kuala Lumpur" (without WP) etc. → canonical key, or "".
+function canonNegeri(v) {
+  const s = String(v || "").trim().toLowerCase();
+  if (!s) return "";
+  return Object.keys(NEGERI_DAERAH).find(n => {
+    const ln = n.toLowerCase();
+    return ln === s || ln.replace(/^wp /, "") === s;
+  }) || "";
+}
+
+// GPS coordinates are deliberately rounded to 3 decimal places (~100 m) —
+// village-level only, never house-level. Bounds = Malaysia, anything else dropped.
+function cleanCoord(v, min, max) {
+  const n = parseFloat(v);
+  return isNaN(n) || n < min || n > max ? undefined : Math.round(n * 1000) / 1000;
+}
+
+// "Kg. Parit Jawa" / "Kampung Parit Jawa" / "parit jawa" → "parit jawa" for matching.
+function normKampung(s) {
+  return String(s || "").toLowerCase()
+    .replace(/^(kg\.?|kpg\.?|kampung|kampong)\s+/, "")
+    .replace(/\s+/g, " ").trim();
+}
+function placeLabel(p) {
+  return [p.place, p.daerah, p.negeri].filter(Boolean).join(", ");
+}
+function placeKey(p) {
+  const k = normKampung(p.place);
+  if (!k && !p.daerah && !p.negeri) return "";
+  return [k, (p.daerah || "").toLowerCase(), (p.negeri || "").toLowerCase()].join("|");
+}
+// Same kampung name (normalised) and no conflicting daerah/negeri.
+function samePlace(a, b) {
+  const ka = normKampung(a.place), kb = normKampung(b.place);
+  if (!ka || !kb || ka !== kb) return false;
+  if (a.daerah && b.daerah && a.daerah !== b.daerah) return false;
+  if (a.negeri && b.negeri && a.negeri !== b.negeri) return false;
+  return true;
+}
+function osmLink(lat, lng) {
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+}
+
+// ---- form helpers for negeri/daerah/GPS ----
+function fillNegeriSelect() {
+  const sel = document.getElementById("fNegeri");
+  sel.innerHTML = `<option value="">— pilih negeri —</option>`;
+  for (const n of Object.keys(NEGERI_DAERAH)) {
+    const o = document.createElement("option");
+    o.value = n; o.textContent = n;
+    sel.appendChild(o);
+  }
+}
+function refreshDaerahOptions(negeri, keep) {
+  const sel = document.getElementById("fDaerah");
+  const list = NEGERI_DAERAH[negeri] || [];
+  sel.innerHTML = `<option value="">— ${list.length ? "pilih daerah" : "tiada daerah (negeri kecil/WP)"} —</option>`;
+  for (const d of list) {
+    const o = document.createElement("option");
+    o.value = d; o.textContent = d;
+    sel.appendChild(o);
+  }
+  if (keep && !list.includes(keep)) { // imported/legacy value outside the official list
+    const o = document.createElement("option");
+    o.value = keep; o.textContent = keep + " (luar senarai)";
+    sel.appendChild(o);
+  }
+  sel.value = keep || "";
+}
+function showCoordStatus() {
+  const lat = document.getElementById("fLat").value, lng = document.getElementById("fLng").value;
+  const st = document.getElementById("coordStatus"), cl = document.getElementById("clearCoord");
+  if (lat && lng) {
+    st.innerHTML = `${lat}, ${lng} · <a href="${osmLink(lat, lng)}" target="_blank" rel="noopener">lihat peta</a>`;
+    cl.style.display = "inline-block";
+  } else {
+    st.textContent = "belum direkod";
+    cl.style.display = "none";
+  }
+}
+function captureLocation() {
+  if (!navigator.geolocation) { toast("Pelayar ini tiada sokongan GPS"); return; }
+  toast("Mendapatkan lokasi…");
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = cleanCoord(pos.coords.latitude, 0.5, 8);
+    const lng = cleanCoord(pos.coords.longitude, 99, 120);
+    if (lat === undefined || lng === undefined) { toast("Lokasi di luar Malaysia — tidak disimpan"); return; }
+    document.getElementById("fLat").value = lat;
+    document.getElementById("fLng").value = lng;
+    showCoordStatus();
+    toast("Lokasi kampung disimpan ✔ (±100 m)");
+  }, () => toast("Tidak dapat lokasi — pastikan GPS dibenarkan"), { enableHighAccuracy: false, timeout: 10000 });
+}
+function clearCoords() {
+  document.getElementById("fLat").value = "";
+  document.getElementById("fLng").value = "";
+  showCoordStatus();
+}
 
 // ---------------- tabs ----------------
 function showTab(btn) {
@@ -423,6 +572,9 @@ function resetForm() {
   document.getElementById("fName").value = "";
   document.getElementById("fYear").value = "";
   document.getElementById("fPlace").value = "";
+  document.getElementById("fNegeri").value = "";
+  refreshDaerahOptions("", "");
+  clearCoords();
   document.getElementById("fDeathYear").value = "";
   document.getElementById("fEdu").value = "";
   document.getElementById("fEduField").value = "";
@@ -466,6 +618,10 @@ function savePerson() {
     sex: document.getElementById("fSex").value,
     birthYear: document.getElementById("fYear").value,
     place: document.getElementById("fPlace").value,
+    daerah: document.getElementById("fDaerah").value,
+    negeri: document.getElementById("fNegeri").value,
+    lat: document.getElementById("fLat").value,
+    lng: document.getElementById("fLng").value,
     deathYear: document.getElementById("fDeathYear").value,
     edu: document.getElementById("fEdu").value,
     eduField: document.getElementById("fEduField").value,
@@ -510,6 +666,11 @@ function editPerson(id) {
   document.getElementById("fSex").value = p.sex;
   document.getElementById("fYear").value = p.birthYear || "";
   document.getElementById("fPlace").value = p.place || "";
+  document.getElementById("fNegeri").value = p.negeri || "";
+  refreshDaerahOptions(p.negeri || "", p.daerah || "");
+  document.getElementById("fLat").value = p.lat !== undefined ? p.lat : "";
+  document.getElementById("fLng").value = p.lng !== undefined ? p.lng : "";
+  showCoordStatus();
   document.getElementById("fDeathYear").value = p.deathYear || "";
   document.getElementById("fEdu").value = p.edu || "";
   document.getElementById("fEduField").value = p.eduField || "";
@@ -606,6 +767,17 @@ function renderStats() {
     facts.push(`🌱 Paling muda: <b>${esc(youngest.name)}</b> — lahir ${youngest.birthYear}`);
   if (grads) facts.push(`🎓 <b>${grads}</b> ahli ada rekod tempat pengajian`);
 
+  // most common kampung asal (normalised so "Kg." / "Kampung" spellings match)
+  const placeCounts = {};
+  for (const p of ps) {
+    const k = placeKey(p);
+    if (!k) continue;
+    (placeCounts[k] = placeCounts[k] || { n: 0, label: placeLabel(p) }).n++;
+  }
+  const topPlace = Object.values(placeCounts).sort((a, b) => b.n - a.n)[0];
+  if (topPlace && topPlace.n >= 2)
+    facts.push(`📍 Tempat asal paling ramai: <b>${esc(topPlace.label)}</b> — ${topPlace.n} ahli`);
+
   document.getElementById("funFacts").innerHTML =
     facts.map(f => `<div style="padding:5px 0; font-size:.92rem">${f}</div>`).join("");
 }
@@ -654,7 +826,7 @@ function render() {
               <div class="nm">${esc(p.name)}${basis && basis !== "biological" ? `<span class="pill">${esc(basis)}</span>` : ""}</div>
               <div class="meta">
                 ${p.birthYear ? esc(p.birthYear) : "?"}${p.deathYear ? "–" + esc(p.deathYear) + " ☪" : ""}
-                ${p.place ? " · " + esc(p.place) : ""}
+                ${placeLabel(p) ? " · " + esc(placeLabel(p)) : ""}${p.lat !== undefined && p.lng !== undefined ? ` · <a href="${osmLink(p.lat, p.lng)}" target="_blank" rel="noopener">🗺️</a>` : ""}
                 ${parents ? " · anak " + esc(parents) : ""}
                 ${spouses ? " · ⚭ " + esc(spouses) : ""}
                 ${p.edu ? " · 🎓 " + esc(p.edu) + (p.eduField ? " — " + esc(p.eduField) : "") : ""}
@@ -710,7 +882,7 @@ function personFacts(id) {
       : `📅 Lahir ${p.birthYear} (±${thisYear - p.birthYear} tahun)`);
   }
   facts.push(`🌿 Generasi ${generationOf(id, {}) + 1} dalam pokok ini`);
-  if (p.place) facts.push(`📍 ${esc(p.place)}`);
+  if (placeLabel(p)) facts.push(`📍 ${esc(placeLabel(p))}${p.lat !== undefined && p.lng !== undefined ? ` · <a href="${osmLink(p.lat, p.lng)}" target="_blank" rel="noopener">peta</a>` : ""}`);
   if (p.edu) facts.push(`🎓 ${esc(p.edu)}${p.eduField ? " — " + esc(p.eduField) : ""}`);
   const nSibs = siblingCount(id);
   if (nSibs) facts.push(`🧍 ${nSibs} adik-beradik direkodkan`);
@@ -754,8 +926,8 @@ function checkKinship() {
     const desc = nca.anc === a ? nB : nA;
     compare.push(`🌳 ${desc} ialah keturunan langsung ${anc} (${Math.max(nca.depthA, nca.depthB)} generasi)`);
   }
-  if (pA.place && pB.place && pA.place.toLowerCase() === pB.place.toLowerCase()) {
-    compare.push(`📍 Kedua-duanya dari ${esc(pA.place)}`);
+  if (samePlace(pA, pB)) {
+    compare.push(`📍 Kedua-duanya dari ${esc(placeLabel(pA))} — sama tempat asal`);
   }
 
   const factCard = (name, facts) => `
@@ -1055,7 +1227,8 @@ function importRows(rows) {
   // Read each row through the header map, cleaning every cell (safety gate 2).
   const HEADERS = { nama:"nama", jantina:"jantina", tahunlahir:"tahunlahir",
                     namaayah:"namaayah", namaibu:"namaibu", pasangan:"pasangan", hubungan:"hubungan",
-                    tempatasal:"tempatasal", tahunmeninggal:"tahunmeninggal", catatan:"catatan",
+                    tempatasal:"tempatasal", daerah:"daerah", negeri:"negeri",
+                    tahunmeninggal:"tahunmeninggal", catatan:"catatan",
                     pendidikan:"pendidikan", bidang:"bidang", pakaian:"pakaian", oku:"oku" };
   const records = [];
   rows.forEach((raw, i) => {
@@ -1084,7 +1257,8 @@ function importRows(rows) {
     const pk = (r.pakaian || "").toLowerCase().replace(/[^a-z]/g, "");
     const ok = (r.oku || "").toLowerCase().replace(/[^a-z]/g, "");
     family.persons[id] = cleanPerson({ name: r.nama, sex: r.sex, birthYear: r.tahunlahir,
-      place: r.tempatasal, deathYear: r.tahunmeninggal, note: r.catatan,
+      place: r.tempatasal, daerah: r.daerah, negeri: r.negeri,
+      deathYear: r.tahunmeninggal, note: r.catatan,
       edu: r.pendidikan, eduField: r.bidang,
       attire: ["niqab", "purdah"].includes(pk) ? "niqab"
             : ["niqabhitam", "purdahhitam", "abaya"].includes(pk) ? "niqabhitam"
@@ -1093,6 +1267,8 @@ function importRows(rows) {
       oku: ["kerusiroda"].includes(ok) ? "kerusiroda"
          : ["penglihatan", "buta", "tongkatputih"].includes(ok) ? "penglihatan"
          : ok === "tongkat" ? "tongkat" : "" });
+    if (r.negeri && !family.persons[id].negeri)
+      errors.push(`${r.nama}: Negeri "${r.negeri}" tidak dikenali — guna ejaan rasmi (cth: Johor, Pulau Pinang, WP Kuala Lumpur)`);
     byName[key] = id;
     r._id = id;
     added++;
@@ -1142,11 +1318,11 @@ function importRows(rows) {
 
 // ---------------- template download ----------------
 function downloadTemplate(kind) {
-  const headers = ["Nama","Jantina","TahunLahir","NamaAyah","NamaIbu","Pasangan","Hubungan","TempatAsal","TahunMeninggal","Pendidikan","Bidang","Pakaian","OKU","Catatan"];
+  const headers = ["Nama","Jantina","TahunLahir","NamaAyah","NamaIbu","Pasangan","Hubungan","TempatAsal","Daerah","Negeri","TahunMeninggal","Pendidikan","Bidang","Pakaian","OKU","Catatan"];
   const examples = [
-    ["Hashim bin Awang","L","1925","","","Saloma binti Omar","kandung","Parit Jawa, Muar","1989","","","jubah","tongkat","Penoreh getah, Tok Imam surau lama"],
-    ["Saloma binti Omar","P","1928","","","","","Parit Jawa, Muar","","","","niqab","","Suri rumah"],
-    ["Ahmad bin Hashim","L","1950","Hashim bin Awang","Saloma binti Omar","","","Muar","","Universiti Malaya","Perubatan","","",""],
+    ["Hashim bin Awang","L","1925","","","Saloma binti Omar","kandung","Parit Jawa","Muar","Johor","1989","","","jubah","tongkat","Penoreh getah, Tok Imam surau lama"],
+    ["Saloma binti Omar","P","1928","","","","","Parit Jawa","Muar","Johor","","","","niqab","","Suri rumah"],
+    ["Ahmad bin Hashim","L","1950","Hashim bin Awang","Saloma binti Omar","","","","Muar","Johor","","Universiti Malaya","Perubatan","","",""],
   ];
   if (kind === "xlsx" && typeof XLSX !== "undefined") {
     const ws = XLSX.utils.aoa_to_sheet([headers, ...examples]);
@@ -1165,6 +1341,7 @@ function downloadTemplate(kind) {
 }
 
 // ---------------- go ----------------
+fillNegeriSelect();
 render();
 resetForm();
 </script>

@@ -261,6 +261,38 @@ A salasilah's worst failure mode isn't a wrong entry — it's a *silent disappea
 
 (The current prototype deletes instantly with a confirm dialog — acceptable for a single-user file on your own machine; this protection layer arrives with accounts in Stage 2, where it belongs.)
 
+### 8e. Kampung Network & Location Verification (the whole-kampung salasilah)
+
+The §8b bridge protocol already implies this endgame: when several families from the same kampung connect their trees, the network *is* the kampung's salasilah. That only works if "kampung" is a verified place entity, not free text — today "Kg. Parit Jawa", "Kampung Parit Jawa" and "Parit Jawa, Muar" would be three different strings that can never find each other.
+
+**The `Tempat` entity (Stage 2 schema, replaces free-text tempat asal):**
+
+| Field | Notes |
+|---|---|
+| id, nama, nama lain (aliases) | canonical name + spelling variants |
+| jenis | kampung / taman / pekan / bandar / felda |
+| mukim, daerah, negeri | administrative hierarchy |
+| lat/lng | village-centre point only — never house-level |
+| status | Disahkan / Belum disahkan (same ladder as §8c) |
+| sumber | gazetteer / user-created |
+
+**Verification ladder (how a kampung becomes "real"):**
+
+1. **Seeded gazetteer first.** GeoNames and OpenStreetMap both carry Malaysian kampung-level names with coordinates, downloadable free ([GeoNames](https://www.geonames.org/), [OSM data sources for Malaysia](https://wiki.openstreetmap.org/wiki/Malaysia/Data_Sources), [OSMNames extracts](https://github.com/OSMNames/OSMNames)). Seed a Malaysia place table; user picks via typeahead filtered negeri → daerah. Picking from the list = instantly usable, marked from-gazetteer.
+2. **Not in the list → create it on a map.** User drops a pin (Leaflet + OSM tiles, free) and names it. Status: Belum disahkan. Coverage gaps are real — many small kampung aren't in any database; users become the gazetteer.
+3. **Community confirmation.** When members of **3+ unrelated trees** attach the same pin/name, it flips to Disahkan. Merge tool for duplicates (same pin radius + similar name → suggest merge, aliases kept).
+4. **Optional GPS check-in — "Sahkan kampung anda".** One-tap confirm when physically there; a one-time event record, never location tracking. Natural Raya moment: balik kampung, open app, sahkan — fits the §6 seasonal push and makes verification a tradition rather than a chore.
+
+**What it unlocks:** dedupe of tempat asal across the app; the "sama tempat asal" kinship fact becomes reliable; §8b cross-tree matching gets a strong new signal (same verified kampung + similar name/birth-year = better match candidates, still hash-protected); a **kampung page** listing opted-in families with bridge invites ("3 keluarga dari Kg. Parit Jawa sudah berhubung — keluarga anda?"); and a new share card, **Peta Asal Keluarga** — a map of the family's ancestral kampung pins.
+
+**Privacy rules (non-negotiable, extends §10):**
+- Location is stored at **village granularity only** — no addresses, no live GPS, ever.
+- A kampung page never lists people — only family/tree names whose **Penjaga explicitly opted in** (bridge protocol consent applies).
+- Kampung asal of living people follows the person's existing privacy scope.
+- No public "browse all kampung" map of families in v1 — the kampung network is invitation-discovery, not a directory. (A public map of *place names only* is harmless and can support the free calculator page.)
+
+**Phasing:** `Tempat` table + typeahead in Stage 2 (cheap, prevents free-text debt from day one); pin-drop creation and kampung pages Phase B; GPS check-in + Peta Asal share card with the Raya push. The prototype's free-text tempat asal stays as-is — it becomes an alias on migration.
+
 ---
 
 ## 9. Tech Stack (kept honest for where you are as a builder)
