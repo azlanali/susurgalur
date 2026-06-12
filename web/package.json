@@ -1,0 +1,21 @@
+{
+  "name": "susurgalur-web",
+  "version": "0.2.0",
+  "private": true,
+  "description": "SusurGalur — Malaysian-first family tree app. Kinship engine + Next.js + Supabase.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node tests/kinship.test.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "next": "^16.2.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

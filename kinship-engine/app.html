@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SusurGalur — Bina Salasilah Keluarga</title>
+<script src="kinship.js"></script>
+<script src="avatar.js"></script>
+<!-- SheetJS — reads Excel files in the browser (needs internet the first time) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root { --green:#0b6e4f; --green-dark:#08543c; --gold:#c9a227; --bg:#f7f5ef; --ink:#1f2421;
+          --card:#ffffff; --line:#e4e0d5; --danger:#b3403a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink); padding-bottom:80px; }
+
+  header { background:var(--green); color:#fff; padding:18px 20px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:1.3rem; }
+  header .sub { font-size:.85rem; opacity:.85; }
+
+  nav { display:flex; gap:0; background:var(--green-dark); }
+  nav button { flex:1; max-width:220px; padding:12px 8px; background:none; border:none; color:#cfe5dc;
+               font-size:.95rem; cursor:pointer; border-bottom:3px solid transparent; }
+  nav button.active { color:#fff; font-weight:700; border-bottom-color:var(--gold); }
+
+  main { max-width:860px; margin:0 auto; padding:20px 16px; }
+  .tab { display:none; } .tab.active { display:block; }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; }
+  .card h2 { font-size:1.05rem; color:var(--green); margin-bottom:12px; }
+
+  label { display:block; font-size:.85rem; font-weight:600; margin:10px 0 4px; }
+  input[type=text], input[type=number], select {
+    width:100%; padding:10px 12px; font-size:1rem; border:2px solid var(--line); border-radius:10px; background:#fff; }
+  input:focus, select:focus { border-color:var(--green); outline:none; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .grid3 { display:grid; grid-template-columns:2fr 1fr 1fr; gap:12px; }
+  @media (max-width:560px){ .grid2,.grid3 { grid-template-columns:1fr; } }
+
+  .btn { display:inline-block; padding:11px 20px; border:none; border-radius:10px; font-size:.95rem;
+         font-weight:700; cursor:pointer; margin-top:14px; }
+  .btn-primary { background:var(--green); color:#fff; }
+  .btn-primary:hover { background:var(--green-dark); }
+  .btn-ghost { background:#eee; color:var(--ink); }
+  .btn-danger { background:#fbeeed; color:var(--danger); }
+  .btn-sm { padding:6px 12px; font-size:.8rem; margin-top:0; }
+
+  .gen-title { font-size:.8rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+               color:#8a8474; margin:18px 0 8px; }
+  .person { display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line);
+            border-radius:12px; padding:10px 14px; margin-bottom:8px; }
+  .person .avatar { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                    font-weight:800; color:#fff; flex-shrink:0; }
+  .av-M { background:var(--green); } .av-F { background:var(--gold); }
+  /* full-body avatar (traditional dress) — shown when no photo */
+  .fig { width:44px; height:84px; flex-shrink:0; }
+  .fig svg, .kfig svg { width:100%; height:100%; display:block; }
+  .kfig { width:36px; height:68px; flex-shrink:0; }
+  .person .info { flex:1; min-width:0; }
+  .person .nm { font-weight:700; }
+  .person .meta { font-size:.78rem; color:#777; }
+  .person .acts { display:flex; gap:6px; }
+
+  .result-row { display:flex; align-items:center; gap:14px; padding:14px; border-radius:12px;
+                background:#f2f8f5; margin-bottom:10px; }
+  .result-row .who { flex:1; font-size:.88rem; color:#555; }
+  .result-row .term { font-size:1.25rem; font-weight:800; color:var(--green); text-align:right; }
+
+  .empty { text-align:center; color:#999; padding:34px 10px; font-size:.95rem; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+           padding:10px 22px; border-radius:24px; font-size:.9rem; opacity:0; transition:opacity .3s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .dropzone { border:2.5px dashed #b9b2a0; border-radius:14px; padding:34px 16px; text-align:center;
+              color:#857d68; cursor:pointer; transition:all .15s; margin-top:8px; }
+  .dropzone.drag { border-color:var(--green); background:#eef6f2; color:var(--green); }
+  .dropzone .big { font-size:2rem; display:block; margin-bottom:6px; }
+  table.std { width:100%; border-collapse:collapse; font-size:.82rem; margin-top:10px; }
+  table.std th, table.std td { border:1px solid var(--line); padding:6px 8px; text-align:left; }
+  table.std th { background:#f4f1e8; }
+  table.std td:first-child { font-weight:700; white-space:nowrap; }
+  .req { color:var(--danger); font-weight:700; }
+  .report { font-size:.85rem; background:#f2f8f5; border-radius:10px; padding:12px 14px; margin-top:12px;
+            line-height:1.5; display:none; }
+  .report .err { color:var(--danger); }
+  .pill { display:inline-block; font-size:.7rem; background:#f0ead2; color:#7a6a1f; border-radius:10px;
+          padding:2px 8px; margin-left:6px; vertical-align:middle; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌳 SusurGalur</h1>
+  <span class="sub">Bina salasilah keluarga anda — data disimpan dalam pelayar anda sahaja</span>
+</header>
+
+<nav>
+  <button class="active" data-tab="tab-family" onclick="showTab(this)">👪 Keluarga</button>
+  <button data-tab="tab-check" onclick="showTab(this)">🗣️ Semak Pertalian</button>
+  <button data-tab="tab-data" onclick="showTab(this)">💾 Data</button>
+</nav>
+
+<main>
+
+  <!-- ============ TAB 1: FAMILY ============ -->
+  <section id="tab-family" class="tab active">
+    <div class="card">
+      <h2 id="formTitle">Tambah Ahli Keluarga</h2>
+      <input type="hidden" id="editId">
+      <div class="grid3">
+        <div>
+          <label>Nama penuh</label>
+          <input type="text" id="fName" placeholder="cth: Ahmad bin Hashim">
+        </div>
+        <div>
+          <label>Jantina</label>
+          <select id="fSex">
+            <option value="M">Lelaki</option>
+            <option value="F">Perempuan</option>
+          </select>
+        </div>
+        <div>
+          <label>Tahun lahir</label>
+          <input type="number" id="fYear" placeholder="cth: 1950">
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Ayah</label>
+          <select id="fFather"></select>
+        </div>
+        <div>
+          <label>Ibu</label>
+          <select id="fMother"></select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Hubungan dengan ibu bapa di atas</label>
+          <select id="fBasis">
+            <option value="biological">Anak kandung</option>
+            <option value="angkat">Anak angkat</option>
+            <option value="tiri">Anak tiri</option>
+          </select>
+        </div>
+        <div>
+          <label>Pasangan (jika berkahwin)</label>
+          <select id="fSpouse"></select>
+        </div>
+      </div>
+      <div class="grid3">
+        <div>
+          <label>Tempat asal (kampung / daerah)</label>
+          <input type="text" id="fPlace" placeholder="cth: Parit Jawa, Muar">
+        </div>
+        <div>
+          <label>Tahun meninggal (jika arwah)</label>
+          <input type="number" id="fDeathYear" placeholder="cth: 1989">
+        </div>
+        <div></div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Gaya pakaian avatar</label>
+          <select id="fAttire"></select>
+        </div>
+        <div>
+          <label>OKU / bantuan mobiliti (untuk avatar, pilihan)</label>
+          <select id="fOku">
+            <option value="">— tiada —</option>
+            <option value="kerusiroda">Kerusi roda</option>
+            <option value="penglihatan">Masalah penglihatan (tongkat putih)</option>
+            <option value="tongkat">Bertongkat</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Sekolah / Universiti (pilihan)</label>
+          <input type="text" id="fEdu" placeholder="cth: Universiti Teknologi Malaysia">
+        </div>
+        <div>
+          <label>Bidang pengajian (pilihan)</label>
+          <input type="text" id="fEduField" placeholder="cth: Kejuruteraan Petroleum">
+        </div>
+      </div>
+      <label>Catatan / kisah hidup (pilihan) — pekerjaan, gelaran, apa beliau dikenali</label>
+      <input type="text" id="fNote" placeholder="cth: Penoreh getah, jual sate depan masjid, Tok Imam surau lama" maxlength="500">
+      <div class="grid2" style="margin-top:10px">
+        <div>
+          <label>Gambar (pilihan) — ambil gambar atau pilih dari galeri</label>
+          <div style="display:flex; align-items:center; gap:12px">
+            <div id="photoPreview" style="width:54px;height:100px;border-radius:12px;overflow:hidden;
+                 display:flex;align-items:center;justify-content:center;background:#f4f1e8;color:#888;font-size:1.4rem"></div>
+            <div>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('fPhoto').click()">📷 Pilih / ambil gambar</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="clearPhoto" style="display:none" onclick="clearPhoto()">✖ Buang</button>
+            </div>
+          </div>
+          <input type="file" id="fPhoto" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(event)">
+        </div>
+        <div></div>
+      </div>
+      <button class="btn btn-primary" onclick="savePerson()">💾 Simpan</button>
+      <button class="btn btn-ghost" id="cancelEdit" style="display:none" onclick="resetForm()">Batal</button>
+    </div>
+
+    <div class="card">
+      <h2>💍 Rekod Perkahwinan</h2>
+      <p style="font-size:.85rem; color:#666; line-height:1.5; margin-bottom:6px">
+        Setiap perkahwinan direkod berasingan — poligami (hingga 4 isteri serentak), cerai dan kematian pasangan
+        semuanya dijejak. Status menentukan label pertalian: cerai memutuskan rantaian ipar/mertua,
+        tetapi nasab anak tidak terjejas.
+      </p>
+      <div class="grid3">
+        <div>
+          <label>Pasangan 1</label>
+          <select id="uA"></select>
+        </div>
+        <div>
+          <label>Pasangan 2</label>
+          <select id="uB"></select>
+        </div>
+        <div>
+          <label>Tahun nikah</label>
+          <input type="number" id="uYear" placeholder="cth: 1971">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addUnion()">➕ Rekod nikah</button>
+      <div id="unionList" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card" id="statsCard" style="display:none">
+      <h2>📊 Fakta Menarik Keluarga</h2>
+      <div id="funFacts"></div>
+    </div>
+
+    <div id="peopleList"></div>
+  </section>
+
+  <!-- ============ TAB 2: KINSHIP CHECK ============ -->
+  <section id="tab-check" class="tab">
+    <div class="card">
+      <h2>Apa mereka patut panggil satu sama lain?</h2>
+      <div class="grid2">
+        <div>
+          <label>Orang pertama</label>
+          <select id="kA"></select>
+        </div>
+        <div>
+          <label>Orang kedua</label>
+          <select id="kB"></select>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="checkKinship()">🔍 Semak</button>
+      <div id="kResult" style="margin-top:18px"></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 3: DATA ============ -->
+  <section id="tab-data" class="tab">
+
+    <div class="card">
+      <h2>📥 Import dari Excel / CSV</h2>
+      <p style="font-size:.9rem; color:#666; line-height:1.5">
+        Cara paling cepat untuk masukkan satu keluarga besar: isi dalam Excel, kemudian seret fail ke sini.
+        Kaitan ayah/ibu/pasangan dibuat secara automatik melalui <b>nama</b> — pastikan ejaan nama sama dalam semua lajur.
+      </p>
+
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('excelFile').click()">
+        <span class="big">📄</span>
+        <b>Seret fail Excel (.xlsx) atau CSV ke sini</b><br>
+        atau klik untuk pilih fail
+      </div>
+      <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelPick(event)">
+      <div class="report" id="importReport"></div>
+
+      <h2 style="margin-top:22px">Format lajur yang diperlukan (standard)</h2>
+      <table class="std">
+        <tr><th>Nama lajur</th><th>Wajib?</th><th>Penerangan &amp; contoh</th></tr>
+        <tr><td>Nama</td><td><span class="req">Wajib</span></td><td>Nama penuh, <b>unik</b> dalam fail — <i>Ahmad bin Hashim</i></td></tr>
+        <tr><td>Jantina</td><td><span class="req">Wajib</span></td><td><i>L</i> atau <i>P</i> (terima juga: Lelaki/Perempuan/M/F)</td></tr>
+        <tr><td>TahunLahir</td><td>Tidak</td><td>Tahun sahaja — <i>1950</i></td></tr>
+        <tr><td>NamaAyah</td><td>Tidak</td><td>Mesti sepadan dengan satu <b>Nama</b> dalam fail ini atau pokok sedia ada</td></tr>
+        <tr><td>NamaIbu</td><td>Tidak</td><td>Sama seperti NamaAyah</td></tr>
+        <tr><td>Pasangan</td><td>Tidak</td><td>Nama pasangan; jika lebih satu, asingkan dengan <i>;</i></td></tr>
+        <tr><td>Hubungan</td><td>Tidak</td><td><i>kandung</i> (lalai) / <i>angkat</i> / <i>tiri</i> — hubungan dengan ibu bapa di atas</td></tr>
+        <tr><td>TempatAsal</td><td>Tidak</td><td>Kampung / daerah — <i>Parit Jawa, Muar</i></td></tr>
+        <tr><td>TahunMeninggal</td><td>Tidak</td><td>Tahun sahaja, jika arwah — <i>1989</i></td></tr>
+        <tr><td>Pendidikan</td><td>Tidak</td><td>Sekolah / universiti — <i>Universiti Malaya</i></td></tr>
+        <tr><td>Bidang</td><td>Tidak</td><td>Bidang pengajian — <i>Perubatan</i></td></tr>
+        <tr><td>Pakaian</td><td>Tidak</td><td>Gaya avatar — perempuan: <i>niqab</i> / <i>niqab hitam</i> (abaya); lelaki: <i>jubah</i> / <i>jubah putih</i>; kosong = lalai</td></tr>
+        <tr><td>OKU</td><td>Tidak</td><td>Untuk avatar — <i>kerusi roda</i> / <i>penglihatan</i> / <i>tongkat</i></td></tr>
+        <tr><td>Catatan</td><td>Tidak</td><td>Kisah ringkas: pekerjaan, gelaran, apa beliau dikenali — <i>penoreh getah, Tok Imam surau lama</i></td></tr>
+      </table>
+      <button class="btn btn-ghost" onclick="downloadTemplate('xlsx')">⬇️ Muat turun templat Excel</button>
+      <button class="btn btn-ghost" onclick="downloadTemplate('csv')">⬇️ Templat CSV</button>
+    </div>
+
+    <div class="card">
+      <h2>Simpanan &amp; Sandaran</h2>
+      <p style="font-size:.9rem; color:#666; line-height:1.5">
+        Data anda disimpan secara automatik dalam pelayar ini sahaja — ia tidak dihantar ke mana-mana.
+        Muat turun fail sandaran (JSON) dari semasa ke semasa supaya tidak hilang.
+      </p>
+      <button class="btn btn-primary" onclick="exportJSON()">⬇️ Muat turun sandaran (JSON)</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">⬆️ Pulihkan dari fail</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+      <hr style="margin:18px 0; border:none; border-top:1px solid var(--line)">
+      <button class="btn btn-danger" onclick="resetAll()">🗑️ Padam semua data</button>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+// ---------------- state ----------------
+const STORE_KEY = "susurgalur-data-v1";
+let family = load() || { persons:{}, children:[], unions:[] };
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; }
+}
+function persist() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(family));
+  render();
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+function newId() { return "p" + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+// ---------------- security helpers ----------------
+// Everything that came from outside (typed, uploaded, imported) is treated as
+// untrusted DATA — never as code. These two functions enforce that.
+
+// 1. Clean any incoming text value: force to plain text, strip control characters,
+//    strip spreadsheet-formula triggers (= + - @), cap the length.
+function cleanText(v, maxLen = 120) {
+  if (v === null || v === undefined) return "";
+  let s = String(v);
+  s = s.replace(/[\u0000-\u001F\u007F]/g, "");      // control characters
+  s = s.replace(/^[=+\-@\t\r]+/, "");                // formula-injection triggers
+  s = s.replace(/<[^>]*>/g, "");                     // strip any HTML tags outright
+  return s.trim().slice(0, maxLen);
+}
+
+// 2. Escape text before putting it into the page, so a name like
+//    <img onerror=...> renders as harmless text, never as HTML.
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+// Rebuild a person object keeping ONLY the fields we recognise —
+// blocks smuggled keys like __proto__ in imported JSON.
+function cleanYear(v) {
+  const y = parseInt(v, 10);
+  return isNaN(y) || y < 1300 || y > 2200 ? undefined : y;
+}
+function cleanPerson(p) {
+  const out = {
+    name: cleanText(p && p.name),
+    sex: p && p.sex === "F" ? "F" : "M",
+    birthYear: cleanYear(p && p.birthYear),
+  };
+  const place = cleanText(p && p.place, 120);
+  const note = cleanText(p && p.note, 500);
+  const deathYear = cleanYear(p && p.deathYear);
+  const edu = cleanText(p && p.edu, 120);
+  const eduField = cleanText(p && p.eduField, 120);
+  if (place) out.place = place;
+  if (note) out.note = note;
+  if (deathYear) out.deathYear = deathYear;
+  if (edu) out.edu = edu;
+  if (eduField) out.eduField = eduField;
+  // avatar appearance — validated enums only, and only when they match jantina
+  const attire = p && ["niqab", "niqabhitam", "jubah", "jubahputih"].includes(p.attire) ? p.attire : "";
+  if ((attire.startsWith("niqab") && out.sex === "F") || (attire.startsWith("jubah") && out.sex === "M")) out.attire = attire;
+  const oku = p && ["kerusiroda", "penglihatan", "tongkat"].includes(p.oku) ? p.oku : "";
+  if (oku) out.oku = oku;
+  return out;
+}
+const ALLOWED_BASIS = ["biological", "angkat", "tiri"];
+
+// ---------------- tabs ----------------
+function showTab(btn) {
+  document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById(btn.dataset.tab).classList.add("active");
+}
+
+// ---------------- form ----------------
+function fillSelect(sel, filterSex, excludeId, emptyLabel) {
+  sel.innerHTML = `<option value="">— ${emptyLabel || "tiada / belum direkod"} —</option>`;
+  const ids = Object.keys(family.persons).sort((a,b) =>
+    (family.persons[a].birthYear || 9999) - (family.persons[b].birthYear || 9999));
+  for (const id of ids) {
+    if (id === excludeId) continue;
+    const p = family.persons[id];
+    if (filterSex && p.sex !== filterSex) continue;
+    const o = document.createElement("option");
+    o.value = id;
+    o.textContent = p.name + (p.birthYear ? ` (${p.birthYear})` : ""); // textContent = safe
+    sel.appendChild(o);
+  }
+}
+
+function refreshFormSelects(excludeId) {
+  fillSelect(document.getElementById("fFather"), "M", excludeId);
+  fillSelect(document.getElementById("fMother"), "F", excludeId);
+  fillSelect(document.getElementById("fSpouse"), null, excludeId);
+}
+
+function resetForm() {
+  document.getElementById("editId").value = "";
+  document.getElementById("fName").value = "";
+  document.getElementById("fYear").value = "";
+  document.getElementById("fPlace").value = "";
+  document.getElementById("fDeathYear").value = "";
+  document.getElementById("fEdu").value = "";
+  document.getElementById("fEduField").value = "";
+  document.getElementById("fNote").value = "";
+  document.getElementById("fSex").value = "M";
+  document.getElementById("fBasis").value = "biological";
+  refreshAttireOptions("");
+  document.getElementById("fOku").value = "";
+  document.getElementById("formTitle").textContent = "Tambah Ahli Keluarga";
+  document.getElementById("cancelEdit").style.display = "none";
+  stagedPhoto = null;
+  showPhotoPreview(null);
+  refreshFormSelects();
+}
+
+// attire choices follow jantina: men can wear jubah, women can wear niqab
+function refreshAttireOptions(keep) {
+  const sel = document.getElementById("fAttire");
+  const opts = document.getElementById("fSex").value === "F"
+    ? [["", "Baju kurung + tudung (lalai)"], ["niqab", "Berpurdah (niqab)"], ["niqabhitam", "Berpurdah hitam (abaya)"]]
+    : [["", "Baju Melayu + samping (lalai)"], ["jubah", "Berjubah (warna lembut)"], ["jubahputih", "Berjubah putih"]];
+  sel.innerHTML = "";
+  for (const [v, t] of opts) {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = t;
+    sel.appendChild(o);
+  }
+  sel.value = opts.some(o => o[0] === keep) ? keep : "";
+}
+
+function savePerson() {
+  const name = cleanText(document.getElementById("fName").value);
+  if (!name) { toast("Sila isi nama dahulu"); return; }
+
+  const editId = document.getElementById("editId").value;
+  const id = editId || newId();
+
+  const prev = family.persons[id];
+  family.persons[id] = cleanPerson({
+    name,
+    sex: document.getElementById("fSex").value,
+    birthYear: document.getElementById("fYear").value,
+    place: document.getElementById("fPlace").value,
+    deathYear: document.getElementById("fDeathYear").value,
+    edu: document.getElementById("fEdu").value,
+    eduField: document.getElementById("fEduField").value,
+    note: document.getElementById("fNote").value,
+    attire: document.getElementById("fAttire").value,
+    oku: document.getElementById("fOku").value,
+  });
+  // consistency check (warning, not a block — the family decides)
+  const np = family.persons[id];
+  if (np.birthYear && np.deathYear && np.deathYear < np.birthYear) {
+    toast("⚠️ Tahun meninggal lebih awal dari tahun lahir — sila semak");
+  }
+  // photo: keep existing unless changed/removed in this edit
+  if (stagedPhoto === null) { if (prev && prev.photo) family.persons[id].photo = prev.photo; }
+  else if (stagedPhoto) family.persons[id].photo = stagedPhoto;
+
+  // parent edges: remove old ones for this child, re-add from form
+  const basis = document.getElementById("fBasis").value;
+  family.children = family.children.filter(e => e.child !== id);
+  const father = document.getElementById("fFather").value;
+  const mother = document.getElementById("fMother").value;
+  if (father) family.children.push({ parent: father, child: id, basis });
+  if (mother) family.children.push({ parent: mother, child: id, basis });
+
+  // spouse: add union if chosen and not already united
+  const spouse = document.getElementById("fSpouse").value;
+  if (spouse) {
+    const exists = family.unions.some(u => u.partners.includes(id) && u.partners.includes(spouse));
+    if (!exists) { family.unions.push({ partners: [id, spouse], status: "active" }); polygamyWarnings(id, spouse); }
+  }
+
+  persist();
+  resetForm();
+  toast(editId ? "Dikemaskini ✔" : `${name} ditambah ✔`);
+}
+
+function editPerson(id) {
+  const p = family.persons[id];
+  refreshFormSelects(id);
+  document.getElementById("editId").value = id;
+  document.getElementById("fName").value = p.name;
+  document.getElementById("fSex").value = p.sex;
+  document.getElementById("fYear").value = p.birthYear || "";
+  document.getElementById("fPlace").value = p.place || "";
+  document.getElementById("fDeathYear").value = p.deathYear || "";
+  document.getElementById("fEdu").value = p.edu || "";
+  document.getElementById("fEduField").value = p.eduField || "";
+  document.getElementById("fNote").value = p.note || "";
+  refreshAttireOptions(p.attire || "");
+  document.getElementById("fOku").value = p.oku || "";
+  const pe = family.children.filter(e => e.child === id);
+  document.getElementById("fBasis").value = (pe[0] && pe[0].basis) || "biological";
+  const father = pe.find(e => family.persons[e.parent] && family.persons[e.parent].sex === "M");
+  const mother = pe.find(e => family.persons[e.parent] && family.persons[e.parent].sex === "F");
+  document.getElementById("fFather").value = father ? father.parent : "";
+  document.getElementById("fMother").value = mother ? mother.parent : "";
+  const u = family.unions.find(u => u.partners.includes(id));
+  document.getElementById("fSpouse").value = u ? u.partners.find(x => x !== id) : "";
+  document.getElementById("formTitle").textContent = `Kemaskini: ${p.name}`;
+  document.getElementById("cancelEdit").style.display = "inline-block";
+  stagedPhoto = null;
+  showPhotoPreview(p.photo || null);
+  document.querySelector('nav button[data-tab="tab-family"]').click();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function deletePerson(id) {
+  const p = family.persons[id];
+  if (!confirm(`Padam ${p.name}? Semua kaitan beliau juga akan dipadam.`)) return;
+  delete family.persons[id];
+  family.children = family.children.filter(e => e.parent !== id && e.child !== id);
+  family.unions = family.unions
+    .map(u => ({ ...u, partners: u.partners.filter(x => x !== id) }))
+    .filter(u => u.partners.length >= 2);
+  persist();
+  toast("Dipadam");
+}
+
+// ---------------- people list (grouped by generation) ----------------
+function generationOf(id, memo = {}) {
+  if (memo[id] !== undefined) return memo[id];
+  memo[id] = 0; // guard against cycles
+  const parents = family.children.filter(e => e.child === id).map(e => e.parent)
+    .filter(p => family.persons[p]);
+  const g = parents.length ? Math.max(...parents.map(p => generationOf(p, memo))) + 1 : 0;
+  memo[id] = g;
+  return g;
+}
+
+// ---------------- fun facts / statistics ----------------
+// Children of one person: how many, boys vs girls, eldest (sulung) and youngest (bongsu).
+function childStats(id) {
+  const kidIds = family.children.filter(e => e.parent === id && family.persons[e.child]).map(e => e.child);
+  if (!kidIds.length) return null;
+  const kids = kidIds.map(c => family.persons[c]);
+  const boys = kids.filter(k => k.sex === "M").length;
+  const dated = kids.filter(k => k.birthYear);
+  let sulung = null, bongsu = null;
+  if (dated.length) {
+    sulung = dated.reduce((a, b) => (a.birthYear <= b.birthYear ? a : b));
+    bongsu = dated.reduce((a, b) => (a.birthYear >= b.birthYear ? a : b));
+  }
+  return { total: kids.length, boys, girls: kids.length - boys, sulung, bongsu };
+}
+
+// Whole-family fun facts shown at the top of the Keluarga tab.
+function renderStats() {
+  const card = document.getElementById("statsCard");
+  const ids = Object.keys(family.persons);
+  if (ids.length < 2) { card.style.display = "none"; return; }
+  card.style.display = "block";
+
+  const ps = ids.map(id => ({ id, ...family.persons[id] }));
+  const male = ps.filter(p => p.sex === "M").length;
+  const memo = {};
+  const gens = Math.max(...ids.map(id => generationOf(id, memo))) + 1;
+
+  // who has the most children
+  let top = null;
+  for (const id of ids) {
+    const n = family.children.filter(e => e.parent === id && family.persons[e.child]).length;
+    if (n && (!top || n > top.n)) top = { id, n };
+  }
+  const living = ps.filter(p => p.birthYear && !p.deathYear);
+  const oldest = living.length ? living.reduce((a, b) => (a.birthYear <= b.birthYear ? a : b)) : null;
+  const youngest = living.length ? living.reduce((a, b) => (a.birthYear >= b.birthYear ? a : b)) : null;
+  const grads = ps.filter(p => p.edu).length;
+  const thisYear = new Date().getFullYear();
+
+  const facts = [];
+  facts.push(`👪 <b>${ids.length}</b> ahli — ${male} lelaki, ${ids.length - male} perempuan — merentasi <b>${gens}</b> generasi`);
+  if (top) {
+    const t = family.persons[top.id];
+    facts.push(`👶 Paling ramai anak: <b>${esc(t.name)}</b> — ${top.n} orang`);
+  }
+  if (oldest) facts.push(`🌳 Paling berusia: <b>${esc(oldest.name)}</b> — lahir ${oldest.birthYear} (±${thisYear - oldest.birthYear} tahun)`);
+  if (youngest && (!oldest || youngest.id !== oldest.id))
+    facts.push(`🌱 Paling muda: <b>${esc(youngest.name)}</b> — lahir ${youngest.birthYear}`);
+  if (grads) facts.push(`🎓 <b>${grads}</b> ahli ada rekod tempat pengajian`);
+
+  document.getElementById("funFacts").innerHTML =
+    facts.map(f => `<div style="padding:5px 0; font-size:.92rem">${f}</div>`).join("");
+}
+
+function render() {
+  const list = document.getElementById("peopleList");
+  const ids = Object.keys(family.persons);
+  if (!ids.length) {
+    list.innerHTML = `<div class="empty">Belum ada sesiapa dalam pokok ini.<br>
+      Mulakan dengan orang paling tua yang anda tahu — moyang atau datuk nenek anda. 🌱</div>`;
+  } else {
+    const memo = {};
+    const byGen = {};
+    for (const id of ids) {
+      const g = generationOf(id, memo);
+      (byGen[g] = byGen[g] || []).push(id);
+    }
+    let html = "";
+    for (const g of Object.keys(byGen).sort((a,b)=>a-b)) {
+      html += `<div class="gen-title">Generasi ${+g + 1}</div>`;
+      byGen[g]
+        .sort((a,b) => (family.persons[a].birthYear||9999) - (family.persons[b].birthYear||9999))
+        .forEach(id => {
+          const p = family.persons[id];
+          const pe = family.children.filter(e => e.child === id);
+          const parents = pe.map(e => family.persons[e.parent] ? family.persons[e.parent].name.split(" ")[0] : "?").join(" & ");
+          const basis = pe[0] && pe[0].basis;
+          const spouses = family.unions.filter(u => u.partners.includes(id))
+            .map(u => {
+              const s = u.partners.find(x => x !== id);
+              if (!family.persons[s]) return null;
+              const st = u.status || "active";
+              return family.persons[s].name.split(" ")[0] + (st === "cerai" ? " (cerai)" : st === "kematian" ? " (m)" : "");
+            })
+            .filter(Boolean).join(", ");
+          html += `
+          <div class="person">
+            ${
+              p.photo && /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(p.photo)
+                ? `<div class="avatar av-${p.sex}" style="overflow:hidden"><img src="${p.photo}" style="width:100%;height:100%;object-fit:cover" alt=""></div>`
+                : (typeof Avatar !== "undefined"
+                    ? `<div class="fig">${Avatar.svg({ ...p, id })}</div>`
+                    : `<div class="avatar av-${p.sex}">${esc(p.name.charAt(0).toUpperCase())}</div>`)
+            }
+            <div class="info">
+              <div class="nm">${esc(p.name)}${basis && basis !== "biological" ? `<span class="pill">${esc(basis)}</span>` : ""}</div>
+              <div class="meta">
+                ${p.birthYear ? esc(p.birthYear) : "?"}${p.deathYear ? "–" + esc(p.deathYear) + " ☪" : ""}
+                ${p.place ? " · " + esc(p.place) : ""}
+                ${parents ? " · anak " + esc(parents) : ""}
+                ${spouses ? " · ⚭ " + esc(spouses) : ""}
+                ${p.edu ? " · 🎓 " + esc(p.edu) + (p.eduField ? " — " + esc(p.eduField) : "") : ""}
+              </div>
+              ${(() => {
+                const cs = childStats(id);
+                if (!cs) return "";
+                let s = `👶 ${cs.total} anak (${cs.boys} L · ${cs.girls} P)`;
+                if (cs.sulung && cs.total > 1) s += ` · sulung: ${esc(cs.sulung.name.split(" ")[0])} (${cs.sulung.birthYear})`;
+                if (cs.bongsu && cs.total > 1 && cs.bongsu !== cs.sulung) s += ` · bongsu: ${esc(cs.bongsu.name.split(" ")[0])} (${cs.bongsu.birthYear})`;
+                return `<div class="meta" style="color:#0b6e4f">${s}</div>`;
+              })()}
+              ${p.note ? `<div class="meta" style="font-style:italic; color:#8a7a2f">"${esc(p.note)}"</div>` : ""}
+            </div>
+            <div class="acts">
+              <button class="btn btn-ghost btn-sm" onclick="editPerson('${id}')">✏️</button>
+              <button class="btn btn-danger btn-sm" onclick="deletePerson('${id}')">🗑️</button>
+            </div>
+          </div>`;
+        });
+    }
+    list.innerHTML = html;
+  }
+  refreshFormSelects(document.getElementById("editId").value || undefined);
+  fillSelect(document.getElementById("kA"), null, null, "pilih orang");
+  fillSelect(document.getElementById("kB"), null, null, "pilih orang");
+  fillSelect(document.getElementById("uA"), null, null, "pilih orang");
+  fillSelect(document.getElementById("uB"), null, null, "pilih orang");
+  renderUnions();
+  renderStats();
+}
+
+// ---------------- kinship check ----------------
+// Siblings = people sharing at least one parent (excluding the person themself).
+function siblingCount(id) {
+  const myParents = family.children.filter(e => e.child === id).map(e => e.parent);
+  if (!myParents.length) return 0;
+  const sibs = new Set();
+  for (const e of family.children) {
+    if (e.child !== id && myParents.includes(e.parent) && family.persons[e.child]) sibs.add(e.child);
+  }
+  return sibs.size;
+}
+
+// Short fact list about one person, for the kinship-check panel.
+function personFacts(id) {
+  const p = family.persons[id];
+  const thisYear = new Date().getFullYear();
+  const facts = [];
+  if (p.birthYear) {
+    facts.push(p.deathYear
+      ? `📅 ${p.birthYear}–${p.deathYear} (hidup ${p.deathYear - p.birthYear} tahun)`
+      : `📅 Lahir ${p.birthYear} (±${thisYear - p.birthYear} tahun)`);
+  }
+  facts.push(`🌿 Generasi ${generationOf(id, {}) + 1} dalam pokok ini`);
+  if (p.place) facts.push(`📍 ${esc(p.place)}`);
+  if (p.edu) facts.push(`🎓 ${esc(p.edu)}${p.eduField ? " — " + esc(p.eduField) : ""}`);
+  const nSibs = siblingCount(id);
+  if (nSibs) facts.push(`🧍 ${nSibs} adik-beradik direkodkan`);
+  const nSpouse = family.unions.filter(u => u.partners.includes(id)).length;
+  if (nSpouse) facts.push(`💍 ${nSpouse} perkahwinan direkodkan`);
+  const cs = childStats(id);
+  if (cs) {
+    let s = `👶 ${cs.total} anak (${cs.boys} L · ${cs.girls} P)`;
+    if (cs.sulung && cs.total > 1) s += ` — sulung ${esc(cs.sulung.name.split(" ")[0])}, bongsu ${esc(cs.bongsu.name.split(" ")[0])}`;
+    facts.push(s);
+  }
+  return facts;
+}
+
+function checkKinship() {
+  const a = document.getElementById("kA").value;
+  const b = document.getElementById("kB").value;
+  const out = document.getElementById("kResult");
+  if (!a || !b) { out.innerHTML = `<div class="empty">Pilih dua orang dahulu.</div>`; return; }
+  if (a === b) { out.innerHTML = `<div class="empty">Itu orang yang sama 😄</div>`; return; }
+  const r = Kinship.computeKinship(family, a, b);
+  const pA = family.persons[a], pB = family.persons[b];
+  const nA = esc(pA.name.split(" ")[0]);
+  const nB = esc(pB.name.split(" ")[0]);
+  const figA = typeof Avatar !== "undefined" ? `<div class="kfig">${Avatar.svg({ ...pA, id: a }, { uid: "ka" })}</div>` : "";
+  const figB = typeof Avatar !== "undefined" ? `<div class="kfig">${Avatar.svg({ ...pB, id: b }, { uid: "kb" })}</div>` : "";
+
+  // --- comparison facts about the pair ---
+  const compare = [];
+  if (pA.birthYear && pB.birthYear) {
+    const diff = Math.abs(pA.birthYear - pB.birthYear);
+    compare.push(diff === 0
+      ? `⚖️ Lahir tahun yang sama (${pA.birthYear})`
+      : `⚖️ ${pA.birthYear < pB.birthYear ? nA : nB} lebih tua ${diff} tahun`);
+  }
+  const nca = Kinship._internal.nearestCommonAncestor(family, a, b);
+  if (nca && nca.anc !== a && nca.anc !== b && family.persons[nca.anc]) {
+    compare.push(`🌳 Moyang sepunya terdekat: <b>${esc(family.persons[nca.anc].name)}</b> — ${nca.depthA} generasi di atas ${nA}, ${nca.depthB} di atas ${nB}`);
+  } else if (nca && (nca.anc === a || nca.anc === b)) {
+    const anc = nca.anc === a ? nA : nB;
+    const desc = nca.anc === a ? nB : nA;
+    compare.push(`🌳 ${desc} ialah keturunan langsung ${anc} (${Math.max(nca.depthA, nca.depthB)} generasi)`);
+  }
+  if (pA.place && pB.place && pA.place.toLowerCase() === pB.place.toLowerCase()) {
+    compare.push(`📍 Kedua-duanya dari ${esc(pA.place)}`);
+  }
+
+  const factCard = (name, facts) => `
+    <div style="flex:1; min-width:220px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px">
+      <div style="font-weight:800; color:var(--green); margin-bottom:6px">${name}</div>
+      ${facts.length ? facts.map(f => `<div style="font-size:.83rem; padding:2px 0">${f}</div>`).join("")
+                     : `<div style="font-size:.83rem; color:#999">Tiada maklumat tambahan direkodkan</div>`}
+    </div>`;
+
+  out.innerHTML = `
+    <div class="result-row">${figA}<div class="who">${nA} panggil ${nB}:</div><div class="term">${esc(r.aCallsB.label)}</div></div>
+    <div class="result-row">${figB}<div class="who">${nB} panggil ${nA}:</div><div class="term">${esc(r.bCallsA.label)}</div></div>
+    <div class="gen-title">Statistik mereka berdua</div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap">
+      ${factCard(nA, personFacts(a))}
+      ${factCard(nB, personFacts(b))}
+    </div>
+    ${compare.length ? `<div style="background:#f2f8f5; border-radius:12px; padding:12px 14px; margin-top:10px">
+      ${compare.map(c => `<div style="font-size:.88rem; padding:3px 0">${c}</div>`).join("")}
+    </div>` : ""}`;
+}
+
+// ---------------- backup ----------------
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(family, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const d = new Date().toISOString().slice(0,10);
+  a.download = `susurgalur-sandaran-${d}.json`;
+  a.click();
+  toast("Sandaran dimuat turun ✔");
+}
+
+function importJSON(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data.persons || !Array.isArray(data.children) || !Array.isArray(data.unions)) throw new Error("format");
+      // Rebuild everything through the cleaners — never trust an uploaded file wholesale.
+      const persons = {};
+      for (const [id, p] of Object.entries(data.persons)) {
+        const cid = cleanText(id, 40);
+        if (!cid || cid === "__proto__" || cid === "constructor" || cid === "prototype") continue;
+        persons[cid] = cleanPerson(p);
+        if (p && typeof p.photo === "string" && /^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(p.photo) && p.photo.length < 200000) {
+          persons[cid].photo = p.photo;
+        }
+      }
+      const children = data.children
+        .map(e => ({ parent: cleanText(e.parent, 40), child: cleanText(e.child, 40),
+                     basis: ALLOWED_BASIS.includes(e.basis) ? e.basis : "biological" }))
+        .filter(e => persons[e.parent] && persons[e.child]);
+      const unions = data.unions
+        .map(u => {
+          const out = { partners: (u.partners || []).map(x => cleanText(x, 40)).filter(x => persons[x]) };
+          if (["active", "cerai", "kematian"].includes(u.status)) out.status = u.status;
+          const ny = cleanYear(u.nikahYear), cy = cleanYear(u.ceraiYear);
+          if (ny) out.nikahYear = ny;
+          if (cy) out.ceraiYear = cy;
+          return out;
+        })
+        .filter(u => u.partners.length >= 2);
+      family = { persons, children, unions };
+      persist();
+      toast("Data dipulihkan ✔");
+    } catch {
+      toast("Fail tidak sah — pastikan ia sandaran SusurGalur");
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = "";
+}
+
+function resetAll() {
+  if (!confirm("Padam SEMUA data salasilah? Tindakan ini tidak boleh diundur.")) return;
+  if (!confirm("Pasti? Muat turun sandaran dahulu jika ragu-ragu.")) return;
+  family = { persons:{}, children:[], unions:[] };
+  persist();
+  toast("Semua data dipadam");
+}
+
+// ---------------- marriages ----------------
+const UNION_STATUS = { active: "Berkahwin", cerai: "Bercerai", kematian: "Pasangan meninggal" };
+
+function activeUnionCount(id) {
+  return family.unions.filter(u => u.partners.includes(id) && (u.status || "active") === "active").length;
+}
+
+// Islamic-rule guidance (warn, never block — history records reality)
+function polygamyWarnings(idA, idB) {
+  for (const id of [idA, idB]) {
+    const p = family.persons[id];
+    const n = activeUnionCount(id);
+    if (p.sex === "M" && n > 4) toast(`⚠️ ${p.name.split(" ")[0]} kini ada ${n} isteri serentak — melebihi had 4. Sila semak status nikah lama (cerai/kematian?)`);
+    if (p.sex === "F" && n > 1) toast(`⚠️ ${p.name.split(" ")[0]} direkod ada ${n} suami serentak — sila semak status nikah lama`);
+  }
+}
+
+function addUnion() {
+  const a = document.getElementById("uA").value;
+  const b = document.getElementById("uB").value;
+  if (!a || !b) { toast("Pilih kedua-dua pasangan"); return; }
+  if (a === b) { toast("Tidak boleh berkahwin dengan diri sendiri 😄"); return; }
+  if (family.unions.some(u => u.partners.includes(a) && u.partners.includes(b))) { toast("Perkahwinan ini sudah direkodkan"); return; }
+  const u = { partners: [a, b], status: "active" };
+  const y = cleanYear(document.getElementById("uYear").value);
+  if (y) u.nikahYear = y;
+  family.unions.push(u);
+  persist();
+  polygamyWarnings(a, b);
+  document.getElementById("uYear").value = "";
+  toast("Nikah direkodkan ✔");
+}
+
+function setUnionStatus(idx, status) {
+  const u = family.unions[idx];
+  if (!u || !UNION_STATUS[status]) return;
+  u.status = status;
+  if (status === "cerai" && !u.ceraiYear) {
+    const y = cleanYear(prompt("Tahun cerai (kosongkan jika tidak pasti):") || "");
+    if (y) u.ceraiYear = y;
+  }
+  persist();
+  toast("Status dikemaskini ✔");
+}
+
+function deleteUnion(idx) {
+  const u = family.unions[idx];
+  const names = u.partners.map(p => family.persons[p] ? family.persons[p].name.split(" ")[0] : "?").join(" ⚭ ");
+  if (!confirm(`Padam rekod nikah ${names}? (Jika bercerai, lebih baik tukar status — sejarah itu sendiri adalah rekod)`)) return;
+  family.unions.splice(idx, 1);
+  persist();
+  toast("Rekod nikah dipadam");
+}
+
+function renderUnions() {
+  const box = document.getElementById("unionList");
+  if (!family.unions.length) { box.innerHTML = `<div class="empty" style="padding:14px">Belum ada perkahwinan direkodkan.</div>`; return; }
+  box.innerHTML = family.unions.map((u, i) => {
+    const names = u.partners.map(p => family.persons[p] ? esc(family.persons[p].name) : "?").join(" ⚭ ");
+    const status = u.status || "active";
+    const yrs = [u.nikahYear ? "nikah " + esc(u.nikahYear) : "", u.ceraiYear ? "cerai " + esc(u.ceraiYear) : ""].filter(Boolean).join(", ");
+    return `
+    <div class="person">
+      <div class="avatar" style="background:${status === "active" ? "var(--green)" : status === "cerai" ? "var(--danger)" : "#888"}">💍</div>
+      <div class="info">
+        <div class="nm">${names}</div>
+        <div class="meta">${yrs || ""}</div>
+      </div>
+      <div class="acts">
+        <select onchange="setUnionStatus(${i}, this.value)" style="padding:6px; font-size:.8rem; border-radius:8px">
+          ${Object.entries(UNION_STATUS).map(([k, v]) => `<option value="${k}" ${k === status ? "selected" : ""}>${v}</option>`).join("")}
+        </select>
+        <button class="btn btn-danger btn-sm" onclick="deleteUnion(${i})">🗑️</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ---------------- photos ----------------
+// Photos are shrunk to small thumbnails (max 240px, JPEG) before saving, so the
+// browser's limited storage isn't overwhelmed. The original photo never leaves
+// the user's device. Full-size photo storage comes in the web-app stage.
+let stagedPhoto = null;
+
+function handlePhoto(ev) {
+  const file = ev.target.files[0];
+  ev.target.value = "";
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { toast("Fail itu bukan gambar"); return; }
+  if (file.size > 15 * 1024 * 1024) { toast("Gambar terlalu besar (had 15MB)"); return; }
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const max = 240;
+    const scale = Math.min(1, max / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    // Re-encoding through a canvas also strips anything hidden inside the
+    // original file — what we store is pure pixels, nothing else.
+    stagedPhoto = canvas.toDataURL("image/jpeg", 0.82);
+    showPhotoPreview(stagedPhoto);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast("Gambar tidak dapat dibaca"); };
+  img.src = url;
+}
+
+function showPhotoPreview(dataUrl) {
+  const el = document.getElementById("photoPreview");
+  if (dataUrl) {
+    previewHasPhoto = true;
+    el.innerHTML = `<img src="${dataUrl}" style="width:100%;height:100%;object-fit:cover">`;
+    document.getElementById("clearPhoto").style.display = "inline-block";
+  } else {
+    previewHasPhoto = false;
+    drawPreviewAvatar();
+    document.getElementById("clearPhoto").style.display = "none";
+  }
+}
+
+// Live avatar preview in the form — updates as jantina / tahun change.
+// Only numbers and enums go into the SVG; the name is only hashed for colours.
+let previewHasPhoto = false;
+
+function drawPreviewAvatar() {
+  const el = document.getElementById("photoPreview");
+  if (typeof Avatar === "undefined") { el.textContent = "📷"; return; }
+  el.innerHTML = Avatar.svg({
+    id: document.getElementById("editId").value || "pv",
+    name: document.getElementById("fName").value || "",
+    sex: document.getElementById("fSex").value,
+    birthYear: cleanYear(document.getElementById("fYear").value),
+    deathYear: cleanYear(document.getElementById("fDeathYear").value),
+    attire: document.getElementById("fAttire").value,
+    oku: document.getElementById("fOku").value,
+  }, { uid: "pv" });
+}
+
+["fName", "fSex", "fYear", "fDeathYear", "fAttire", "fOku"].forEach(id =>
+  document.getElementById(id).addEventListener("input", () => {
+    if (!previewHasPhoto) drawPreviewAvatar();
+  }));
+// jantina change → swap the attire choices to match
+document.getElementById("fSex").addEventListener("change", () => {
+  refreshAttireOptions(document.getElementById("fAttire").value);
+  if (!previewHasPhoto) drawPreviewAvatar();
+});
+
+function clearPhoto() { stagedPhoto = ""; showPhotoPreview(null); }
+
+// ---------------- Excel / CSV import ----------------
+const dz = document.getElementById("dropzone");
+["dragenter","dragover"].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add("drag"); }));
+["dragleave","drop"].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove("drag"); }));
+dz.addEventListener("drop", ev => {
+  const file = ev.dataTransfer.files[0];
+  if (file) readSpreadsheet(file);
+});
+
+function handleExcelPick(ev) {
+  const file = ev.target.files[0];
+  ev.target.value = "";
+  if (file) readSpreadsheet(file);
+}
+
+function readSpreadsheet(file) {
+  // Safety gate 1: type + size. The file is only ever READ as data —
+  // formulas and macros are never executed in this process.
+  const okName = /\.(xlsx|xls|csv)$/i.test(file.name);
+  if (!okName) { toast("Hanya fail .xlsx, .xls atau .csv diterima"); return; }
+  if (file.size > 5 * 1024 * 1024) { toast("Fail terlalu besar (had 5MB)"); return; }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    let rows;
+    try {
+      if (/\.csv$/i.test(file.name)) {
+        rows = parseCSV(String(reader.result));
+      } else {
+        if (typeof XLSX === "undefined") { toast("Pembaca Excel belum dimuat — perlukan internet, atau guna CSV"); return; }
+        const wb = XLSX.read(reader.result, { type: "array" }); // data only; macros ignored
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      }
+    } catch { toast("Fail tidak dapat dibaca"); return; }
+    importRows(rows || []);
+  };
+  if (/\.csv$/i.test(file.name)) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+}
+
+function parseCSV(text) {
+  const lines = text.replace(/\r/g, "").split("\n").filter(l => l.trim());
+  if (!lines.length) return [];
+  const split = (l) => l.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map(c =>
+    c.replace(/,$/, "").replace(/^"|"$/g, "").replace(/""/g, '"'));
+  const headers = split(lines[0]);
+  return lines.slice(1).map(l => {
+    const cells = split(l), row = {};
+    headers.forEach((h, i) => row[h] = cells[i] || "");
+    return row;
+  });
+}
+
+function normaliseHeader(h) { return String(h).toLowerCase().replace(/[^a-z]/g, ""); }
+
+function importRows(rows) {
+  const report = document.getElementById("importReport");
+  const errors = [];
+  if (rows.length > 5000) { toast("Terlalu banyak baris (had 5000)"); return; }
+
+  // Read each row through the header map, cleaning every cell (safety gate 2).
+  const HEADERS = { nama:"nama", jantina:"jantina", tahunlahir:"tahunlahir",
+                    namaayah:"namaayah", namaibu:"namaibu", pasangan:"pasangan", hubungan:"hubungan",
+                    tempatasal:"tempatasal", tahunmeninggal:"tahunmeninggal", catatan:"catatan",
+                    pendidikan:"pendidikan", bidang:"bidang", pakaian:"pakaian", oku:"oku" };
+  const records = [];
+  rows.forEach((raw, i) => {
+    const row = {};
+    for (const [k, v] of Object.entries(raw)) {
+      const nk = HEADERS[normaliseHeader(k)];
+      if (nk) row[nk] = cleanText(v);
+    }
+    if (!row.nama) { if (Object.values(row).some(Boolean)) errors.push(`Baris ${i+2}: tiada Nama — dilangkau`); return; }
+    const sx = (row.jantina || "").toLowerCase();
+    row.sex = ["p","f","perempuan","female","wanita"].includes(sx) ? "F"
+            : ["l","m","lelaki","male"].includes(sx) ? "M" : null;
+    if (!row.sex) { errors.push(`Baris ${i+2} (${row.nama}): Jantina mesti L atau P — dilangkau`); return; }
+    records.push(row);
+  });
+
+  // Pass 1: create people (match by exact name against file + existing tree).
+  const byName = {};
+  for (const [id, p] of Object.entries(family.persons)) byName[p.name.toLowerCase()] = id;
+  let added = 0, skipped = 0;
+  for (const r of records) {
+    const key = r.nama.toLowerCase();
+    if (byName[key]) { skipped++; r._id = byName[key]; continue; }
+    const id = newId();
+    // attire/OKU come in as friendly words — normalise to the stored enums
+    const pk = (r.pakaian || "").toLowerCase().replace(/[^a-z]/g, "");
+    const ok = (r.oku || "").toLowerCase().replace(/[^a-z]/g, "");
+    family.persons[id] = cleanPerson({ name: r.nama, sex: r.sex, birthYear: r.tahunlahir,
+      place: r.tempatasal, deathYear: r.tahunmeninggal, note: r.catatan,
+      edu: r.pendidikan, eduField: r.bidang,
+      attire: ["niqab", "purdah"].includes(pk) ? "niqab"
+            : ["niqabhitam", "purdahhitam", "abaya"].includes(pk) ? "niqabhitam"
+            : pk === "jubah" ? "jubah"
+            : pk === "jubahputih" ? "jubahputih" : "",
+      oku: ["kerusiroda"].includes(ok) ? "kerusiroda"
+         : ["penglihatan", "buta", "tongkatputih"].includes(ok) ? "penglihatan"
+         : ok === "tongkat" ? "tongkat" : "" });
+    byName[key] = id;
+    r._id = id;
+    added++;
+  }
+
+  // Pass 2: link parents and spouses by name.
+  let links = 0;
+  for (const r of records) {
+    const basis = ALLOWED_BASIS.includes((r.hubungan || "").replace("kandung","biological"))
+      ? r.hubungan.replace("kandung","biological")
+      : (r.hubungan || "") === "" || r.hubungan === "kandung" ? "biological" : null;
+    const finalBasis = basis || "biological";
+    if (r.hubungan && !["kandung","angkat","tiri",""].includes(r.hubungan)) {
+      errors.push(`${r.nama}: Hubungan "${r.hubungan}" tidak dikenali — guna kandung/angkat/tiri (dianggap kandung)`);
+    }
+    for (const [col, who] of [["namaayah","Ayah"], ["namaibu","Ibu"]]) {
+      if (!r[col]) continue;
+      const pid = byName[r[col].toLowerCase()];
+      if (!pid) { errors.push(`${r.nama}: ${who} "${r[col]}" tidak dijumpai — pastikan ejaan sama`); continue; }
+      const exists = family.children.some(e => e.parent === pid && e.child === r._id);
+      if (!exists) { family.children.push({ parent: pid, child: r._id, basis: finalBasis }); links++; }
+      // consistency check: parent should be meaningfully older than child
+      const py = family.persons[pid].birthYear, cy = family.persons[r._id].birthYear;
+      if (py && cy && py > cy - 12) {
+        errors.push(`${r.nama}: ${who} "${r[col]}" lahir ${py}, anak lahir ${cy} — sila semak tahun`);
+      }
+    }
+    if (r.pasangan) {
+      for (const spName of r.pasangan.split(";").map(s => s.trim()).filter(Boolean)) {
+        const sid = byName[spName.toLowerCase()];
+        if (!sid) { errors.push(`${r.nama}: Pasangan "${spName}" tidak dijumpai`); continue; }
+        const exists = family.unions.some(u => u.partners.includes(r._id) && u.partners.includes(sid));
+        if (!exists) { family.unions.push({ partners: [r._id, sid] }); links++; }
+      }
+    }
+  }
+
+  persist();
+  report.style.display = "block";
+  report.innerHTML =
+    `<b>Import selesai:</b> ${added} orang ditambah, ${skipped} sudah wujud (dilangkau), ${links} kaitan dibuat.` +
+    (errors.length ? `<br><br><b class="err">Perhatian (${errors.length}):</b><br>` +
+      errors.slice(0, 20).map(esc).join("<br>") +
+      (errors.length > 20 ? `<br>…dan ${errors.length - 20} lagi` : "") : "");
+  toast(`${added} orang diimport ✔`);
+}
+
+// ---------------- template download ----------------
+function downloadTemplate(kind) {
+  const headers = ["Nama","Jantina","TahunLahir","NamaAyah","NamaIbu","Pasangan","Hubungan","TempatAsal","TahunMeninggal","Pendidikan","Bidang","Pakaian","OKU","Catatan"];
+  const examples = [
+    ["Hashim bin Awang","L","1925","","","Saloma binti Omar","kandung","Parit Jawa, Muar","1989","","","jubah","tongkat","Penoreh getah, Tok Imam surau lama"],
+    ["Saloma binti Omar","P","1928","","","","","Parit Jawa, Muar","","","","niqab","","Suri rumah"],
+    ["Ahmad bin Hashim","L","1950","Hashim bin Awang","Saloma binti Omar","","","Muar","","Universiti Malaya","Perubatan","","",""],
+  ];
+  if (kind === "xlsx" && typeof XLSX !== "undefined") {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...examples]);
+    ws["!cols"] = headers.map(() => ({ wch: 20 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Keluarga");
+    XLSX.writeFile(wb, "susurgalur-templat.xlsx");
+  } else {
+    const csv = [headers, ...examples].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    a.download = "susurgalur-templat.csv";
+    a.click();
+  }
+  toast("Templat dimuat turun ✔");
+}
+
+// ---------------- go ----------------
+render();
+resetForm();
+</script>
+</body>
+</html>

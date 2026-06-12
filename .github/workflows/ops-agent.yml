@@ -1,0 +1,55 @@
+# Jaga Stage 2 — diagnose & propose (docs/OPERATIONS.md §2). TEMPLATE.
+#
+# Triggers when an issue is labelled "incident". Claude reads the issue,
+# investigates the repo and recent commits, posts a diagnosis comment,
+# and may open a fix PR. IT NEVER MERGES — Azlan reviews every PR.
+#
+# To activate (after launch, when Stage 1 has run for a while):
+#   1. Install the Claude GitHub app:  https://github.com/apps/claude
+#   2. Repo Settings → Secrets → Actions → add CLAUDE_CODE_OAUTH_TOKEN
+#      (or ANTHROPIC_API_KEY). Agent SDK usage is covered by the Claude
+#      Pro plan's monthly Agent SDK credit (metered from 15 June 2026).
+#   3. Remove the "if: false" line below.
+name: Jaga ops agent
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  diagnose:
+    if: false  # ← remove this line to activate
+    # if: github.event.label.name == 'incident'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are Jaga, the SusurGalur ops agent. An incident issue was opened:
+            "${{ github.event.issue.title }}"
+
+            ${{ github.event.issue.body }}
+
+            Investigate: read the repo, check recent commits since the last
+            known-good deploy, and identify the most likely cause.
+
+            Then:
+            1. Comment on issue #${{ github.event.issue.number }} with a short
+               diagnosis: what broke, when, which commit, suggested fix.
+            2. If (and only if) you are confident, create a branch
+               fix/issue-${{ github.event.issue.number }}, commit a minimal fix
+               plus a test that reproduces the bug, and open a PR referencing
+               the issue.
+
+            Hard rules: never merge anything; never touch production data,
+            secrets, or billing; if not confident, say so in the comment and
+            stop. All output in plain English.

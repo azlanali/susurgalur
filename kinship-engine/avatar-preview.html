@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SusurGalur — Pratonton Avatar</title>
+<script src="avatar.js"></script>
+<style>
+  body { font-family:-apple-system,"Segoe UI",sans-serif; background:#f7f5ef; color:#1f2421; padding:24px; }
+  h1 { color:#0b6e4f; font-size:1.2rem; margin-bottom:4px; }
+  p { color:#777; font-size:.85rem; margin-bottom:20px; }
+  h2 { font-size:.8rem; letter-spacing:.08em; text-transform:uppercase; color:#8a8474; margin:22px 0 10px; }
+  .row { display:flex; flex-wrap:wrap; gap:14px; }
+  .cell { background:#fff; border:1px solid #e4e0d5; border-radius:12px; padding:10px 8px 6px; width:104px; text-align:center; }
+  .cell svg { width:84px; height:160px; display:block; margin:0 auto; }
+  .cell .lbl { font-size:.72rem; color:#666; margin-top:4px; }
+</style>
+</head>
+<body>
+<h1>🌳 Pratonton Avatar SusurGalur</h1>
+<p>Avatar dijana secara automatik mengikut jantina &amp; umur — pakaian tradisional Melayu. Setiap orang dapat warna tersendiri (tetap, tidak berubah).</p>
+<div id="out"></div>
+<script>
+"use strict";
+const groups = [
+  ["Kanak-kanak", [
+    { id:"s1", name:"Adam", sex:"M", birthYear:2021 },
+    { id:"s2", name:"Aisyah", sex:"F", birthYear:2020 },
+    { id:"s3", name:"Iman", sex:"M", birthYear:2016 },
+    { id:"s4", name:"Sofea", sex:"F", birthYear:2017 },
+  ]],
+  ["Remaja", [
+    { id:"t1", name:"Farid", sex:"M", birthYear:2010 },
+    { id:"t2", name:"Nurul", sex:"F", birthYear:2009 },
+  ]],
+  ["Dewasa", [
+    { id:"u1", name:"Ahmad", sex:"M", birthYear:1996 },
+    { id:"u2", name:"Siti", sex:"F", birthYear:1995 },
+    { id:"u3", name:"Razak", sex:"M", birthYear:1989 },
+    { id:"u4", name:"Faridah", sex:"F", birthYear:1991 },
+  ]],
+  ["Pertengahan umur", [
+    { id:"v1", name:"Hashim", sex:"M", birthYear:1974 },
+    { id:"v2", name:"Zainab", sex:"F", birthYear:1973 },
+  ]],
+  ["Warga emas", [
+    { id:"w1", name:"Awang", sex:"M", birthYear:1950 },
+    { id:"w2", name:"Saloma", sex:"F", birthYear:1952 },
+    { id:"w3", name:"Hussein", sex:"M", birthYear:1944 },
+    { id:"w4", name:"Maimunah", sex:"F", birthYear:1946 },
+  ]],
+  ["Gaya pakaian — niqab & jubah", [
+    { id:"x1", name:"Khadijah", sex:"F", birthYear:1992, attire:"niqab" },
+    { id:"x2", name:"Maryam", sex:"F", birthYear:1958, attire:"niqab" },
+    { id:"x5", name:"Ruqayyah", sex:"F", birthYear:1990, attire:"niqabhitam" },
+    { id:"x6", name:"Sumayyah", sex:"F", birthYear:1962, attire:"niqabhitam" },
+    { id:"x3", name:"Yusuf", sex:"M", birthYear:1985, attire:"jubah" },
+    { id:"x4", name:"Ismail", sex:"M", birthYear:1949, attire:"jubah" },
+    { id:"x7", name:"Harun", sex:"M", birthYear:1988, attire:"jubahputih" },
+    { id:"x8", name:"Zakaria", sex:"M", birthYear:1946, attire:"jubahputih" },
+  ]],
+  ["OKU — kerusi roda, penglihatan, tongkat", [
+    { id:"y1", name:"Hamid", sex:"M", birthYear:1960, oku:"kerusiroda" },
+    { id:"y2", name:"Rahmah", sex:"F", birthYear:1965, oku:"kerusiroda" },
+    { id:"y3", name:"Bakar", sex:"M", birthYear:1975, oku:"penglihatan" },
+    { id:"y4", name:"Salmah", sex:"F", birthYear:1980, oku:"penglihatan" },
+    { id:"y5", name:"Pak Mat", sex:"M", birthYear:1944, oku:"tongkat" },
+    { id:"y6", name:"Mak Timah", sex:"F", birthYear:1946, oku:"tongkat" },
+  ]],
+];
+let html = "";
+const now = new Date().getFullYear();
+for (const [title, people] of groups) {
+  html += `<h2>${title}</h2><div class="row">`;
+  for (const p of people) {
+    const age = now - p.birthYear;
+    html += `<div class="cell">${Avatar.svg(p)}<div class="lbl">${p.name} · ${age} thn</div></div>`;
+  }
+  html += `</div>`;
+}
+document.getElementById("out").innerHTML = html;
+</script>
+</body>
+</html>

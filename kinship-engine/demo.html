@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SusurGalur — Enjin Pertalian (Demo)</title>
+<script src="kinship.js"></script>
+<style>
+  :root { --green: #0b6e4f; --gold: #c9a227; --bg: #f7f5ef; --ink: #1f2421; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink);
+         display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 32px 16px; }
+  h1 { color: var(--green); font-size: 1.6rem; margin-bottom: 4px; }
+  .tag { color: #6b6b6b; margin-bottom: 28px; font-size: .95rem; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.08);
+          padding: 28px; width: 100%; max-width: 560px; }
+  .pickers { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  select { font-size: 1rem; padding: 10px 14px; border-radius: 10px; border: 2px solid #ddd; background: #fff; }
+  select:focus { border-color: var(--green); outline: none; }
+  .vs { font-weight: 700; color: var(--gold); }
+  .result { margin-top: 26px; display: none; }
+  .row { display: flex; align-items: center; gap: 14px; padding: 16px;
+         border-radius: 12px; background: #f2f8f5; margin-bottom: 12px; }
+  .row .who { flex: 1; font-size: .9rem; color: #555; }
+  .row .term { font-size: 1.35rem; font-weight: 800; color: var(--green); }
+  .row .pang { font-size: .85rem; color: #8a7a2f; }
+  .arrow { font-size: 1.3rem; }
+  footer { margin-top: 28px; font-size: .8rem; color: #999; text-align: center; }
+  footer b { color: var(--green); }
+</style>
+</head>
+<body>
+  <h1>SusurGalur</h1>
+  <div class="tag">Pilih dua orang — apa mereka patut panggil satu sama lain?</div>
+
+  <div class="card">
+    <div class="pickers">
+      <select id="selA"></select>
+      <span class="vs">⟷</span>
+      <select id="selB"></select>
+    </div>
+
+    <div class="result" id="result">
+      <div class="row">
+        <span class="arrow">🗣️</span>
+        <div class="who" id="whoAB"></div>
+        <div>
+          <div class="term" id="termAB"></div>
+          <div class="pang" id="pangAB"></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="arrow">🗣️</span>
+        <div class="who" id="whoBA"></div>
+        <div>
+          <div class="term" id="termBA"></div>
+          <div class="pang" id="pangBA"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Keluarga contoh: 5 generasi keturunan <b>Awang &amp; Aminah</b> (27 orang, termasuk poligami,
+    saudara tiri-darah &amp; ipar-duai).<br>Enjin pertalian v0.1 — label dikira, bukan disimpan.</footer>
+
+<script>
+  // Same sample family as the test suite
+  const P = (name, sex, birthYear) => ({ name, sex, birthYear });
+  const family = {
+    persons: {
+      awang: P("Awang (M, 1900)", "M", 1900), aminah: P("Aminah (F, 1903)", "F", 1903),
+      hashim: P("Hashim (M, 1925)", "M", 1925), saloma: P("Saloma (F, 1928)", "F", 1928),
+      halimah: P("Halimah (F, 1928)", "F", 1928), dollah: P("Dollah (M, 1925)", "M", 1925),
+      hussin: P("Hussin (M, 1930)", "M", 1930), tipah: P("Tipah (F, 1932)", "F", 1932),
+      timah: P("Timah (F, 1940)", "F", 1940),
+      ahmad: P("Ahmad (M, 1950)", "M", 1950), zainab: P("Zainab (F, 1952)", "F", 1952),
+      aishah: P("Aishah (F, 1953)", "F", 1953), kassim: P("Kassim (M, 1950)", "M", 1950),
+      bakar: P("Bakar (M, 1952)", "M", 1952), bedah: P("Bedah (F, 1954)", "F", 1954),
+      cempaka: P("Cempaka (F, 1955)", "F", 1955), lokman: P("Lokman (M, 1960)", "M", 1960),
+      daud: P("Daud (M, 1975)", "M", 1975), delima: P("Delima (F, 1977)", "F", 1977),
+      dahlia: P("Dahlia (F, 1978)", "F", 1978),
+      eddy: P("Eddy (M, 1976)", "M", 1976), esah: P("Esah (F, 1978)", "F", 1978),
+      faridah: P("Faridah (F, 1977)", "F", 1977),
+      ghani: P("Ghani (M, 2000)", "M", 2000), hana: P("Hana (F, 2002)", "F", 2002),
+      zaki: P("Zaki (M, 1925)", "M", 1925), zaiton: P("Zaiton (F, 1930)", "F", 1930),
+    },
+    children: [
+      { parent: "awang", child: "hashim" }, { parent: "aminah", child: "hashim" },
+      { parent: "awang", child: "halimah" }, { parent: "aminah", child: "halimah" },
+      { parent: "awang", child: "hussin" }, { parent: "aminah", child: "hussin" },
+      { parent: "hashim", child: "ahmad" }, { parent: "saloma", child: "ahmad" },
+      { parent: "hashim", child: "aishah" }, { parent: "saloma", child: "aishah" },
+      { parent: "halimah", child: "bakar" }, { parent: "dollah", child: "bakar" },
+      { parent: "hussin", child: "cempaka" }, { parent: "tipah", child: "cempaka" },
+      { parent: "hussin", child: "lokman" }, { parent: "timah", child: "lokman" },
+      { parent: "zaki", child: "zainab" }, { parent: "zaiton", child: "zainab" },
+      { parent: "ahmad", child: "daud" }, { parent: "zainab", child: "daud" },
+      { parent: "ahmad", child: "dahlia" }, { parent: "zainab", child: "dahlia" },
+      { parent: "aishah", child: "eddy" }, { parent: "kassim", child: "eddy" },
+      { parent: "bakar", child: "faridah" }, { parent: "bedah", child: "faridah" },
+      { parent: "daud", child: "ghani" }, { parent: "delima", child: "ghani" },
+      { parent: "eddy", child: "hana" }, { parent: "esah", child: "hana" },
+    ],
+    unions: [
+      { partners: ["awang", "aminah"] }, { partners: ["hashim", "saloma"] },
+      { partners: ["halimah", "dollah"] }, { partners: ["hussin", "tipah"] },
+      { partners: ["hussin", "timah"] }, { partners: ["ahmad", "zainab"] },
+      { partners: ["aishah", "kassim"] }, { partners: ["bakar", "bedah"] },
+      { partners: ["daud", "delima"] }, { partners: ["eddy", "esah"] },
+      { partners: ["zaki", "zaiton"] },
+    ],
+  };
+
+  const selA = document.getElementById("selA");
+  const selB = document.getElementById("selB");
+  const ids = Object.keys(family.persons);
+  for (const sel of [selA, selB]) {
+    for (const id of ids) {
+      const o = document.createElement("option");
+      o.value = id;
+      o.textContent = family.persons[id].name;
+      sel.appendChild(o);
+    }
+  }
+  selA.value = "ghani";
+  selB.value = "aishah";
+
+  function shortName(id) { return family.persons[id].name.split(" (")[0]; }
+
+  function update() {
+    const a = selA.value, b = selB.value;
+    const r = Kinship.computeKinship(family, a, b);
+    document.getElementById("result").style.display = "block";
+    document.getElementById("whoAB").textContent = `${shortName(a)} panggil ${shortName(b)}:`;
+    document.getElementById("termAB").textContent = r.aCallsB.label;
+    document.getElementById("pangAB").textContent =
+      r.aCallsB.panggilan && r.aCallsB.panggilan !== r.aCallsB.label ? `panggilan: ${r.aCallsB.panggilan}` : "";
+    document.getElementById("whoBA").textContent = `${shortName(b)} panggil ${shortName(a)}:`;
+    document.getElementById("termBA").textContent = r.bCallsA.label;
+    document.getElementById("pangBA").textContent =
+      r.bCallsA.panggilan && r.bCallsA.panggilan !== r.bCallsA.label ? `panggilan: ${r.bCallsA.panggilan}` : "";
+  }
+  selA.addEventListener("change", update);
+  selB.addEventListener("change", update);
+  update();
+</script>
+</body>
+</html>

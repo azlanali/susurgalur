@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Dependencies & builds (web/ has its own .gitignore too)
+node_modules/
+.next/
+
+# Secrets — never commit
+.env
+.env.local
+.env*.local
