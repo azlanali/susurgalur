@@ -55,12 +55,28 @@ Secure, Malaysian-first family tree app for Muslims — mission: revive salasila
 12. **Kampung network (11 June, plan §8e):** whole-kampung salasilah = endgame of §8b bridges. `Tempat` entity (canonical kampung + mukim/daerah/negeri + village-centre lat/lng) replaces free-text tempat asal in Stage 2 schema; seeded from GeoNames/OSM gazetteer, typeahead picker; missing kampung = user pin-drop (Belum disahkan) → Disahkan when 3+ unrelated trees attach it; optional GPS "Sahkan kampung anda" check-in as a Raya balik-kampung moment. Privacy: village granularity only, kampung pages list opted-in families (never people), no public family directory. Share card: Peta Asal Keluarga.
 13. **Sign-up & billing (11 June, plan §10b):** login = Google + email OTP only via Supabase Auth (no Facebook/Insta — trust clash + attack surface; Apple added with iOS app; WhatsApp OTP Phase B). Billing = annual per-family plan through Stripe Malaysia (cards auto-renew; FPX as one-off annual — Stripe FPX can't do recurring). Curlec is the fallback if monthly subs ever needed. Card data never touches our DB. PDPA breach rules (live since 1 June 2025): 72h Commissioner notice / 7-day user notice / up to RM1M fines — incident-response one-pager required before launch.
 
+## SPRINT — Family Beta by 22 June 2026 (agreed 12 June)
+**Definition of done:** Azlan's real family signs into susurgalur.vercel.app, builds one shared tree with roles, and the kinship checker works on real data.
+
+| When | Build | Notes |
+|---|---|---|
+| 12–14 Jun (weekend) | **Azlan: test app.html with real family data** + set HEALTH_URL variable | Validates labels cheaply; the data collected becomes the beta tree |
+| 15–16 Jun | Auth: Google + email OTP, profile row on first login | Google Cloud Console OAuth setup = fiddly config, budget half a day |
+| 16–18 Jun | Tree CRUD: create tree, add/edit person (port BM form), parents (basis), marriages, soft-delete | The big block — port app.html logic onto Postgres |
+| 19 Jun | Tree view (family-chart/react-flow) + Semak Pertalian on own tree | Engine already done — wiring only |
+| 20 Jun | Invite links (expiring, single-tree) + roles enforcement UI | RLS already enforces server-side |
+| 21 Jun | Buffer + polish + family onboarding (the real test) | If ahead: port Excel import |
+| 22 Jun | **Family beta live** | |
+
+**Parked until after 22 June:** GEDCOM import/export, share cards, gelaran presets, verification UI (§8c), deletion quarantine UI (§8d), payments/Stripe, PostHog + Vercel Pro (before public/charging), Jaga Stage 2.
+
 ## Next steps (in order)
 1. **Azlan: test app.html with real family data** — kinship labels need real-world validation
 2. ~~Stage 2 kickoff: Next.js project; port engine~~ ✅ done — `web/` scaffold ready
-3. **Push to GitHub → create Supabase project → `supabase db push` → connect Vercel** (~30 min, steps in `web/README.md`)
-4. Then: auth (Google + email OTP), tree CRUD in Postgres, invite flow, roles
-5. Later: GEDCOM import, share cards, verification UI, gelaran presets
+3. ~~Push to GitHub → Supabase → Vercel~~ ✅ **DEPLOYED 12 June 2026 → https://susurgalur.vercel.app** (repo: github.com/azlanali/susurgalur, private; Supabase Singapore, schema applied, account 2FA on; /api/health db:ok; /semak verified in production)
+4. **Set HEALTH_URL repo variable** (GitHub → Settings → Secrets and variables → Actions → Variables → `HEALTH_URL` = `https://susurgalur.vercel.app/api/health`) — activates the 15-min watchdog
+5. Then: auth (Google + email OTP), tree CRUD in Postgres, invite flow, roles
+6. Later: GEDCOM import, share cards, verification UI, gelaran presets; PostHog snippet + Vercel Pro before charging money
 
 ## Engine v0.1 known limits (fine for now)
 - Panggilan (address terms) basic; gelaran system not yet implemented
